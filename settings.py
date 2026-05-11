@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 import json
 import sys
@@ -16,7 +16,7 @@ SETTINGS_FILE = MODLOADER_PATH / "settings.json"
 class Settings:
     exe_target: str = ""
     game_folder_path: str = ""
-    last_played_mod: str = ""
+    last_enabled_mods: list[str] = field(default_factory=list)
 
     def generate(self):
         if self.exe_target:

@@ -37,8 +37,6 @@ class ModLoader:
 
     def install_mod(self, mod_path: Path):
 
-        self.clear_override_folders()
-
         files_folder = mod_path / "Files"
 
         source_folder = files_folder if files_folder.exists() else mod_path
@@ -76,7 +74,6 @@ class ModLoader:
                 raise Exception(
                     f"Failed copying:\n{item}\n->\n{destination}\n\n{e}"
                 )
-            
 
     def clear_override_folders(self):
 

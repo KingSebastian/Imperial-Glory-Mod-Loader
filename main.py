@@ -3,6 +3,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication,
+    QListWidgetItem,
     QWidget,
     QListWidget,
     QTextEdit,
@@ -13,6 +14,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QMessageBox
 )
+
+from PySide6.QtCore import Qt
+
 
 from settings import Settings, MODS_FOLDER
 from mod_manager import ModManager
@@ -58,7 +62,7 @@ class ModLoaderApp(QWidget):
         self.select_exe_button = QPushButton("Select Game EXE")
         self.select_exe_button.clicked.connect(self.select_game_exe)
 
-        self.launch_button = QPushButton("Launch Mod")
+        self.launch_button = QPushButton("Launch Game")
         self.launch_button.clicked.connect(self.launch_selected_mod)
 
         # RIGHT LAYOUT
@@ -80,25 +84,54 @@ class ModLoaderApp(QWidget):
         self.mod_list.clear()
 
         for mod in self.mod_manager.mods:
-            self.mod_list.addItem(mod.name)
 
-    def mod_selected(self, index):
+            item = QListWidgetItem(mod.name)
 
-        if index < 0:
+            # Make checkbox appear
+            item.setFlags(
+                item.flags() | Qt.ItemIsUserCheckable
+            )
+
+            # Restore previous enabled mods
+            if (
+                self.settings.last_enabled_mods and
+                mod.name in self.settings.last_enabled_mods
+            ):
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+
+            self.mod_list.addItem(item)
+
+    def mod_selected(self, row):
+
+        if row < 0:
             return
 
-        mod = self.mod_manager.mods[index]
+        mod = self.mod_manager.mods[row]
+
         self.selected_mod = mod
 
         self.title_label.setText(mod.name)
 
-        info = (
+        self.info_box.setPlainText(
             f"Author: {mod.author}\n"
             f"Version: {mod.version}\n\n"
             f"{mod.description}"
         )
 
-        self.info_box.setText(info)
+    def get_enabled_mods(self):
+
+        enabled = []
+
+        for i in range(self.mod_list.count()):
+
+            item = self.mod_list.item(i)
+
+            if item.checkState() == Qt.Checked:
+                enabled.append(self.mod_manager.mods[i])
+
+        return enabled
 
     def select_game_exe(self):
 
@@ -118,25 +151,47 @@ class ModLoaderApp(QWidget):
 
     def launch_selected_mod(self):
 
-        if not self.selected_mod:
-            QMessageBox.warning(self, "Error", "No mod selected")
-            return
-
         if not self.settings.exe_target:
-            QMessageBox.warning(self, "Error", "No game executable selected")
+            QMessageBox.warning(
+                self,
+                "Error",
+                "No game executable selected"
+            )
             return
 
         try:
+
+            enabled_mods = self.get_enabled_mods()
 
             loader = ModLoader(
                 Path(self.settings.game_folder_path)
             )
 
-            loader.install_mod(self.selected_mod.path)
-            loader.launch_game(self.settings.exe_target)
+            # ALWAYS clear folders first
+            loader.clear_override_folders()
+
+            # Install checked mods
+            for mod in enabled_mods:
+                loader.install_mod(mod.path)
+
+            # Save enabled mods
+            self.settings.last_enabled_mods = [
+                mod.name for mod in enabled_mods
+            ]
+
+            self.settings.save()
+
+            # Launch game
+            loader.launch_game(
+                self.settings.exe_target
+            )
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            QMessageBox.critical(
+                self,
+                "Error",
+                str(e)
+            )
 
 
 def main():
