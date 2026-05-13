@@ -69,6 +69,7 @@ class ModLoader:
 
             try:
                 shutil.copy(item, destination)
+                os.chmod(destination, stat.S_IWRITE)
 
             except Exception as e:
                 raise Exception(
